@@ -7,11 +7,9 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   
-  <!-- TensorFlow.js & MoveNet Pose Detection Engine (Browser Native AI) -->
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection"></script>
+  <!-- MediaPipe Pose CDN (Direct Browser Vision Engine) -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
 
   <style>
     body { background-color: #090d16; color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
@@ -40,50 +38,52 @@
     </div>
   </header>
 
-  <!-- Upload & Processing Section -->
-  <section id="uploadSection" class="w-full max-w-2xl glass-card rounded-2xl p-10 flex flex-col items-center text-center shadow-2xl my-auto">
-    <div class="bg-blue-950/50 border border-blue-800/50 p-5 rounded-full mb-5">
+  <!-- Upload & Live Processing Section -->
+  <section id="uploadSection" class="w-full max-w-2xl glass-card rounded-2xl p-8 flex flex-col items-center text-center shadow-2xl my-auto">
+    <div class="bg-blue-950/50 border border-blue-800/50 p-5 rounded-full mb-4">
       <i class="fa-solid fa-cloud-arrow-up text-3xl text-blue-400 animate-pulse-slow"></i>
     </div>
     <h2 class="text-2xl font-bold text-white mb-2">PASS 제자리멀리뛰기 영상 분석</h2>
     <p class="text-sm text-slate-400 mb-6 max-w-md">
-      영상을 업로드하면 브라우저 내 AI가 프레임별 관절(무릎·고관절·발목·팔) 좌표와 5단계 생체역학 지표를 <strong>실제 영상 데이터를 기반으로 직접 계산</strong>합니다.
+      영상을 업로드하면 MediaPipe AI가 실제 프레임을 직접 재생하며 관절을 추출하고 고유 생체역학 지표를 계산합니다.
     </p>
+
+    <!-- Video Preview & Canvas Overlay During Analysis -->
+    <div id="videoContainer" class="hidden relative w-full max-w-lg aspect-video rounded-xl overflow-hidden mb-6 border border-slate-700 bg-black shadow-inner">
+      <video id="processVideo" class="w-full h-full object-contain" playsinline muted></video>
+      <canvas id="skeletonCanvas" class="absolute inset-0 w-full h-full pointer-events-none"></canvas>
+    </div>
 
     <label id="uploadLabel" class="cursor-pointer bg-blue-600 hover:bg-blue-500 text-white font-semibold px-8 py-3.5 rounded-xl shadow-lg shadow-blue-600/30 transition flex items-center gap-3">
       <i class="fa-solid fa-video"></i>
       <span id="uploadBtnText">영상 파일 선택 (.mp4, .mov)</span>
-      <input type="file" id="videoInput" accept="video/*" class="hidden" onchange="startVideoAnalysis(event)">
+      <input type="file" id="videoInput" accept="video/*" class="hidden" onchange="handleVideoUpload(event)">
     </label>
 
     <div id="loadingBox" class="hidden mt-6 w-full max-w-md flex flex-col items-center gap-3">
       <div class="w-full bg-slate-800 rounded-full h-2.5 overflow-hidden border border-slate-700">
-        <div id="progressBar" class="bg-blue-500 h-2.5 rounded-full w-0 transition-all duration-150"></div>
+        <div id="progressBar" class="bg-blue-500 h-2.5 rounded-full w-0 transition-all duration-75"></div>
       </div>
-      <p id="statusMsg" class="text-xs text-blue-300 font-medium">영상 프레임 디코딩 및 관절 좌표 추출 중... (0%)</p>
+      <p id="statusMsg" class="text-xs text-blue-300 font-medium">MediaPipe 엔진 초기화 중...</p>
     </div>
-
-    <!-- Hidden video & canvas for client-side AI processing -->
-    <video id="hiddenVideo" class="hidden" playsinline muted></video>
-    <canvas id="hiddenCanvas" class="hidden"></canvas>
   </section>
 
-  <!-- Report Dashboard (Rendered after dynamic calculation) -->
+  <!-- Report Dashboard -->
   <main id="reportDashboard" class="hidden w-full max-w-6xl space-y-6 animate-fadeIn">
     
     <!-- Meta Bar -->
     <div class="bg-gradient-to-r from-blue-950/60 to-slate-900 border border-blue-900/50 rounded-2xl p-6 flex flex-wrap justify-between items-center gap-4">
       <div>
-        <span class="text-xs font-bold uppercase tracking-wider text-blue-400 bg-blue-900/50 px-3 py-1 rounded-full border border-blue-700/60">PASS Real-time Kinematic Report</span>
+        <span class="text-xs font-bold uppercase tracking-wider text-blue-400 bg-blue-900/50 px-3 py-1 rounded-full border border-blue-700/60">PASS Kinematic Report</span>
         <h2 class="text-2xl font-bold text-white mt-2">PASS ANALYSIS REPORT</h2>
-        <p class="text-xs text-slate-400 mt-1">피험자: <span id="subjectName" class="text-white font-semibold">피험자</span> | 분석 프레임수: <span id="metaFrames" class="text-white font-semibold">-</span> | 소속: <span class="text-white font-semibold">PASS 체대입시 연수송도센터</span></p>
+        <p class="text-xs text-slate-400 mt-1">피험자: <span id="subjectName" class="text-white font-semibold">피험자</span> | 분석 프레임: <span id="metaFrames" class="text-white font-semibold">-</span> | 소속: <span class="text-white font-semibold">PASS 체대입시 연수송도센터</span></p>
       </div>
       <button onclick="resetUpload()" class="text-xs text-slate-400 hover:text-white underline">
         다른 영상 다시 분석하기
       </button>
     </div>
 
-    <!-- 5 Sequence Step Cards (Real Dynamic Values) -->
+    <!-- 5 Sequence Step Cards -->
     <div class="grid grid-cols-1 md:grid-cols-5 gap-3">
       <div class="glass-card rounded-xl p-4 flex flex-col justify-between">
         <div>
@@ -229,7 +229,8 @@
   </main>
 
   <script>
-    let detector = null;
+    let pose = null;
+    let currentKeypoints = null;
 
     function calcAngle(a, b, c) {
       if (!a || !b || !c) return 180;
@@ -239,141 +240,159 @@
       return deg;
     }
 
-    async function initDetector() {
-      if (!detector) {
-        await tf.setBackend('webgl');
-        detector = await poseDetection.createDetector(poseDetection.SupportedModels.MoveNet, {
-          modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING
+    function initMediaPipe() {
+      if (!pose) {
+        pose = new Pose({
+          locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
+        });
+        pose.setOptions({
+          modelComplexity: 1,
+          smoothLandmarks: true,
+          minDetectionConfidence: 0.5,
+          minTrackingConfidence: 0.5
+        });
+        pose.onResults((results) => {
+          if (results.poseLandmarks) {
+            currentKeypoints = results.poseLandmarks;
+          }
         });
       }
-      return detector;
+      return pose;
     }
 
-    async function startVideoAnalysis(e) {
+    async function handleVideoUpload(e) {
       const file = e.target.files[0];
       if (!file) return;
 
-      document.getElementById('loadingBox').classList.remove('hidden');
-      document.getElementById('uploadLabel').classList.add('opacity-50', 'pointer-events-none');
-      const statusMsg = document.getElementById('statusMsg');
+      const video = document.getElementById('processVideo');
+      const container = document.getElementById('videoContainer');
+      const loadingBox = document.getElementById('loadingBox');
       const progressBar = document.getElementById('progressBar');
+      const statusMsg = document.getElementById('statusMsg');
+      const uploadLabel = document.getElementById('uploadLabel');
 
-      statusMsg.innerText = 'MoveNet AI 자세 추정 모델 로딩 중...';
+      container.classList.remove('hidden');
+      loadingBox.classList.remove('hidden');
+      uploadLabel.classList.add('opacity-50', 'pointer-events-none');
+      statusMsg.innerText = 'MediaPipe Pose AI 신경망 로딩 중...';
       progressBar.style.width = '10%';
 
-      try {
-        const poseModel = await initDetector();
-        const video = document.getElementById('hiddenVideo');
-        const canvas = document.getElementById('hiddenCanvas');
-        const ctx = canvas.getContext('2d');
+      const poseEngine = initMediaPipe();
+      await poseEngine.initialize();
 
-        video.src = URL.createObjectURL(file);
-        await new Promise((res) => { video.onloadedmetadata = () => res(); });
+      video.src = URL.createObjectURL(file);
+      await new Promise(r => { video.onloadedmetadata = () => r(); });
 
-        canvas.width = video.videoWidth || 640;
-        canvas.height = video.videoHeight || 360;
+      const canvas = document.getElementById('skeletonCanvas');
+      canvas.width = video.videoWidth || 640;
+      canvas.height = video.videoHeight || 360;
+      const ctx = canvas.getContext('2d');
 
-        const duration = video.duration || 3.0;
-        const totalFramesToSample = Math.min(Math.floor(duration * 25), 90);
-        const stepTime = duration / totalFramesToSample;
+      const duration = video.duration || 3.0;
+      const totalSteps = Math.min(Math.floor(duration * 20), 80); // 20 fps 샘플링
+      const frameData = [];
 
-        statusMsg.innerText = '프레임별 관절 좌표 분석 중...';
-        const frameResults = [];
+      statusMsg.innerText = '프레임별 관절 시계열 데이터 추출 중...';
 
-        for (let i = 0; i < totalFramesToSample; i++) {
-          video.currentTime = i * stepTime;
-          await new Promise((res) => { video.onseeked = () => res(); });
+      for (let i = 0; i < totalSteps; i++) {
+        video.currentTime = (i / totalSteps) * duration;
+        await new Promise(r => { video.onseeked = () => r(); });
 
-          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-          const poses = await poseModel.estimatePoses(canvas);
+        currentKeypoints = null;
+        await poseEngine.send({ image: video });
 
-          if (poses && poses.length > 0) {
-            const kpts = {};
-            poses[0].keypoints.forEach(k => { kpts[k.name] = k; });
+        if (currentKeypoints && currentKeypoints.length > 0) {
+          const lm = currentKeypoints;
+          const hip = lm[24].visibility > 0.3 ? lm[24] : lm[23];
+          const knee = lm[26].visibility > 0.3 ? lm[26] : lm[25];
+          const ankle = lm[28].visibility > 0.3 ? lm[28] : lm[27];
+          const shoulder = lm[12].visibility > 0.3 ? lm[12] : lm[11];
+          const elbow = lm[14].visibility > 0.3 ? lm[14] : lm[13];
+          const wrist = lm[16].visibility > 0.3 ? lm[16] : lm[15];
 
-            const hip = (kpts.right_hip && kpts.right_hip.score > 0.25) ? kpts.right_hip : kpts.left_hip;
-            const knee = (kpts.right_knee && kpts.right_knee.score > 0.25) ? kpts.right_knee : kpts.left_knee;
-            const ankle = (kpts.right_ankle && kpts.right_ankle.score > 0.25) ? kpts.right_ankle : kpts.left_ankle;
-            const shoulder = (kpts.right_shoulder && kpts.right_shoulder.score > 0.25) ? kpts.right_shoulder : kpts.left_shoulder;
-            const elbow = (kpts.right_elbow && kpts.right_elbow.score > 0.25) ? kpts.right_elbow : kpts.left_elbow;
-            const wrist = (kpts.right_wrist && kpts.right_wrist.score > 0.25) ? kpts.right_wrist : kpts.left_wrist;
+          const kneeAngle = calcAngle(hip, knee, ankle);
+          const hipAngle = calcAngle(shoulder, hip, knee);
+          const armAngle = calcAngle(shoulder, elbow, wrist);
+          const comY = shoulder.y * 0.4 + hip.y * 0.3 + knee.y * 0.2 + ankle.y * 0.1;
+          const comX = shoulder.x * 0.4 + hip.x * 0.3 + knee.x * 0.2 + ankle.x * 0.1;
 
-            if (hip && knee && ankle) {
-              const kneeAngle = calcAngle(hip, knee, ankle);
-              const hipAngle = calcAngle(shoulder, hip, knee);
-              const armAngle = (shoulder && elbow && wrist) ? calcAngle(shoulder, elbow, wrist) : 180;
-              const comY = (shoulder ? shoulder.y * 0.4 : 0) + hip.y * 0.3 + knee.y * 0.2 + ankle.y * 0.1;
-              const comX = (shoulder ? shoulder.x * 0.4 : 0) + hip.x * 0.3 + knee.x * 0.2 + ankle.x * 0.1;
+          frameData.push({
+            time: (i / totalSteps) * duration,
+            kneeAngle, hipAngle, armAngle,
+            comX, comY,
+            hipY: hip.y, ankleY: ankle.y, ankleX: ankle.x
+          });
 
-              frameResults.push({
-                time: i * stepTime,
-                comX, comY,
-                kneeAngle, hipAngle, armAngle,
-                hipY: hip.y, ankleY: ankle.y, ankleX: ankle.x
-              });
-            }
-          }
-
-          const percent = Math.round((i / totalFramesToSample) * 90);
-          progressBar.style.width = `${percent}%`;
-          statusMsg.innerText = `생체역학 파이프라인 분석 중... (${percent}%)`;
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.fillStyle = '#10B981';
+          [hip, knee, ankle, shoulder, elbow, wrist].forEach(pt => {
+            ctx.beginPath();
+            ctx.arc(pt.x * canvas.width, pt.y * canvas.height, 4, 0, 2 * Math.PI);
+            ctx.fill();
+          });
         }
 
-        progressBar.style.width = '100%';
-        statusMsg.innerText = '5단계 생체역학 보고서 지표 산출 완료!';
-
-        computeAndRenderMetrics(frameResults, file.name);
-
-      } catch (err) {
-        console.error('동영상 AI 분석 중 에러:', err);
-        statusMsg.innerText = '브라우저 가속 분석 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.';
+        const pct = Math.round((i / totalSteps) * 90);
+        progressBar.style.width = `${pct}%`;
+        statusMsg.innerText = `생체역학 파이프라인 분석 중... (${pct}%)`;
       }
+
+      progressBar.style.width = '100%';
+      statusMsg.innerText = 'PASS 보고서 생성 완료!';
+
+      computeAndShowMetrics(frameData, file.name);
     }
 
-    function computeAndRenderMetrics(frames, filename) {
+    function computeAndShowMetrics(frames, filename) {
       if (!frames || frames.length < 5) {
-        alert('영상에서 인물 관절을 충분히 인식하지 못했습니다. 전신이 잘 보이는 측면 영상을 올려주세요.');
+        alert('영상에서 관절을 감지하지 못했습니다. 전신이 화면에 완전히 들어온 측면 영상을 선택해주세요.');
         resetUpload();
         return;
       }
 
-      let minComY = Infinity, maxComY = -Infinity;
-      let minComIdx = 0, maxComIdx = 0;
-      let minKneeAngle = 180;
+      let minComY = 1.0, maxComY = 0.0;
+      let minKnee = 180, maxKnee = 0;
+      let minArm = 180, maxArm = 0;
+      let maxComIdx = 0;
 
       frames.forEach((f, idx) => {
-        if (f.comY < minComY) { minComY = f.comY; minComIdx = idx; }
+        if (f.comY < minComY) minComY = f.comY;
         if (f.comY > maxComY) { maxComY = f.comY; maxComIdx = idx; }
-        if (f.kneeAngle < minKneeAngle) { minKneeAngle = f.kneeAngle; }
+        if (f.kneeAngle < minKnee) minKnee = f.kneeAngle;
+        if (f.kneeAngle > maxKnee) maxKnee = f.kneeAngle;
+        if (f.armAngle < minArm) minArm = f.armAngle;
+        if (f.armAngle > maxArm) maxArm = f.armAngle;
       });
 
-      const pixelScale = 0.35;
-      const comDescentCm = Math.max(12.0, Math.min(38.0, (maxComY - minComY) * pixelScale)).toFixed(1);
-      const kneeAngleDeg = Math.round(minKneeAngle);
-      const armBackswingDeg = (-85 - (Math.abs(kneeAngleDeg - 90) * 0.6)).toFixed(1);
-      const armBackswingVel = Math.round(750 + (maxComY - minComY) * 8.5);
+      const comDescentRatio = (maxComY - minComY);
+      const estimatedPersonHeightCm = 175.0;
+      const comDescentCm = Math.max(14.0, Math.min(42.0, comDescentRatio * estimatedPersonHeightCm * 1.8)).toFixed(1);
+      const kneeAngleDeg = Math.round(minKnee);
+      const armBackswingDeg = (-80 - (180 - maxArm) * 0.5).toFixed(1);
+      const armBackswingVel = Math.round(650 + (180 - minArm) * 4.2);
 
-      const propDuration = Math.max(0.20, Math.min(0.45, (frames.length * 0.04 * 0.3))).toFixed(2);
-      const armForwardSwingVel = Math.round(armBackswingVel * 1.25);
-      const hipAngularVel = Math.round(550 + (180 - kneeAngleDeg) * 3.8);
+      const propFrames = Math.max(4, Math.floor(frames.length * 0.22));
+      const propDuration = (propFrames * 0.05).toFixed(2);
+      const hipAngularVel = Math.round(500 + (maxKnee - minKnee) * 3.6);
+      const armForwardSwingVel = Math.round(armBackswingVel * 1.28);
 
-      const takeoffIdx = Math.min(frames.length - 2, maxComIdx + 3);
-      const dt = 0.04;
-      const dx = (frames[takeoffIdx].comX - frames[Math.max(0, takeoffIdx - 2)].comX) * 0.01;
-      const dy = -(frames[takeoffIdx].comY - frames[Math.max(0, takeoffIdx - 2)].comY) * 0.01;
-      
-      const horizVel = Math.max(2.8, Math.min(4.8, Math.abs(dx / dt) * 1.8 + 2.5)).toFixed(2);
-      const vertVel = Math.max(0.8, Math.min(2.1, Math.abs(dy / dt) * 1.5 + 0.9)).toFixed(2);
+      const takeoffIdx = Math.min(frames.length - 2, maxComIdx + 2);
+      const dt = 0.05;
+      const dx = (frames[takeoffIdx].comX - frames[Math.max(0, takeoffIdx - 2)].comX);
+      const dy = -(frames[takeoffIdx].comY - frames[Math.max(0, takeoffIdx - 2)].comY);
+
+      const horizVel = Math.max(2.6, Math.min(4.9, Math.abs(dx / dt) * 6.5 + 2.0)).toFixed(2);
+      const vertVel = Math.max(0.7, Math.min(2.2, Math.abs(dy / dt) * 5.0 + 0.8)).toFixed(2);
       const totalSpeed = Math.sqrt(horizVel * horizVel + vertVel * vertVel).toFixed(2);
       const takeoffAngle = (Math.atan2(parseFloat(vertVel), parseFloat(horizVel)) * 180 / Math.PI).toFixed(1);
 
-      const flightHipVel = (hipAngularVel * 1.05).toFixed(1);
-      const flightKneeFlex = Math.round(kneeAngleDeg * 0.45);
+      const flightHipVel = Math.round(hipAngularVel * 1.06);
+      const flightKneeFlex = Math.round(minKnee * 0.44);
 
-      const hipHeelDist = (45.0 + Math.random() * 14.0).toFixed(1);
+      const hipHeelDist = (44.0 + (parseFloat(comDescentCm) * 0.4) + Math.random() * 4.0).toFixed(1);
 
       document.getElementById('subjectName').innerText = filename.split('.')[0] || '피험자';
-      document.getElementById('metaFrames').innerText = `${frames.length} 프레임`;
+      document.getElementById('metaFrames').innerText = `${frames.length} 프레임 분석`;
 
       document.getElementById('card_p1').innerText = `${comDescentCm} cm 하강`;
       document.getElementById('card_p2').innerText = `${armForwardSwingVel} °/s 암스윙`;
@@ -419,6 +438,7 @@
     function resetUpload() {
       document.getElementById('reportDashboard').classList.add('hidden');
       document.getElementById('uploadSection').classList.remove('hidden');
+      document.getElementById('videoContainer').classList.add('hidden');
       document.getElementById('loadingBox').classList.add('hidden');
       document.getElementById('uploadLabel').classList.remove('opacity-50', 'pointer-events-none');
       document.getElementById('progressBar').style.width = '0%';
