@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PERFORMETRICS AI - 제자리멀리뛰기 생체역학 분석 리포트</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    body { background-color: #090d16; color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    .glass-card { background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(30, 58, 138, 0.3); }
+    @keyframes pulse-slow { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+    .animate-pulse-slow { animation: pulse-slow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col items-center p-4 md:p-10">
+
+  <!-- Header -->
+  <header class="w-full max-w-6xl flex justify-between items-center border-b border-slate-800 pb-5 mb-8">
+    <div class="flex items-center gap-3">
+      <div class="bg-blue-600 p-2.5 rounded-xl shadow-lg shadow-blue-500/20">
+        <i class="fa-solid fa-person-running text-white text-xl"></i>
+      </div>
+      <div>
+        <h1 class="text-xl font-bold tracking-tight text-white">PERFORMETRICS <span class="text-blue-500">AI</span></h1>
+        <p class="text-xs text-slate-400">Biomechanics Performance Analytics Web System</p>
+      </div>
+    </div>
+    <div class="flex gap-2">
+      <button id="pdfBtn" onclick="window.print()" class="hidden items-center gap-2 bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded-lg text-xs font-semibold border border-slate-700 transition">
+        <i class="fa-solid fa-file-pdf text-rose-400"></i> PDF 출력
+      </button>
+    </div>
+  </header>
+
+  <!-- Upload Section -->
+  <section id="uploadSection" class="w-full max-w-2xl glass-card rounded-2xl p-10 flex flex-col items-center text-center shadow-2xl my-auto">
+    <div class="bg-blue-950/50 border border-blue-800/50 p-5 rounded-full mb-5">
+      <i class="fa-solid fa-cloud-arrow-up text-3xl text-blue-400 animate-pulse-slow"></i>
+    </div>
+    <h2 class="text-2xl font-bold text-white mb-2">제자리멀리뛰기 측면 영상 업로드</h2>
+    <p class="text-sm text-slate-400 mb-8 max-w-md">
+      수행 영상을 올리시면 Performetrics 5단계 생체역학 지표와 결과지 양식을 즉시 생성하여 시각화합니다.
+    </p>
+
+    <label class="cursor-pointer bg-blue-600 hover:bg-blue-500 text-white font-semibold px-8 py-3.5 rounded-xl shadow-lg shadow-blue-600/30 transition flex items-center gap-3">
+      <i class="fa-solid fa-video"></i>
+      <span id="uploadBtnText">영상 파일 선택 (.mp4, .mov)</span>
+      <input type="file" id="videoInput" accept="video/*" class="hidden" onchange="handleFile(event)">
+    </label>
+
+    <div id="loadingBox" class="hidden mt-6 flex flex-col items-center gap-2">
+      <div class="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+      <p class="text-xs text-blue-300 font-medium">YOLO-Pose 관절 키포인트 및 5단계 생체역학 지표 계산 중...</p>
+    </div>
+  </section>
+
+  <!-- Report Dashboard (Hidden by default) -->
+  <main id="reportDashboard" class="hidden w-full max-w-6xl space-y-6 animate-fadeIn">
+    
+    <!-- Meta Bar -->
+    <div class="bg-gradient-to-r from-blue-950/60 to-slate-900 border border-blue-900/50 rounded-2xl p-6 flex flex-wrap justify-between items-center gap-4">
+      <div>
+        <span class="text-xs font-bold uppercase tracking-wider text-blue-400 bg-blue-900/50 px-3 py-1 rounded-full border border-blue-700/60">SLJ Kinematic Report</span>
+        <h2 class="text-2xl font-bold text-white mt-2">PERFORMETRICS ANALYSIS REPORT</h2>
+        <p class="text-xs text-slate-400 mt-1">피험자: <span id="subjectName" class="text-white font-semibold">피험자</span> | 소속: <span class="text-white font-semibold">연수송도센터</span> | 측정일자: <span id="reportDate" class="text-white font-semibold">2026.04.07</span></p>
+      </div>
+      <button onclick="resetUpload()" class="text-xs text-slate-400 hover:text-white underline">
+        다른 영상 다시 분석하기
+      </button>
+    </div>
+
+    <!-- 5 Sequence Step Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-5 gap-3">
+      <div class="glass-card rounded-xl p-4 flex flex-col justify-between">
+        <div>
+          <div class="text-blue-500 font-extrabold text-xs mb-1">STEP 01</div>
+          <div class="font-bold text-white text-sm">COUNTERMOVEMENT</div>
+          <p class="text-xs text-slate-400 mt-1">COM 하강 및 백스윙</p>
+        </div>
+        <div class="mt-4 pt-3 border-t border-slate-800 text-xs font-bold text-blue-300">23.2 cm 하강</div>
+      </div>
+      <div class="glass-card rounded-xl p-4 flex flex-col justify-between">
+        <div>
+          <div class="text-blue-500 font-extrabold text-xs mb-1">STEP 02</div>
+          <div class="font-bold text-white text-sm">PROPULSION</div>
+          <p class="text-xs text-slate-400 mt-1">하지 신전 및 전방 스윙</p>
+        </div>
+        <div class="mt-4 pt-3 border-t border-slate-800 text-xs font-bold text-blue-300">1116 °/s 암스윙</div>
+      </div>
+      <div class="glass-card rounded-xl p-4 flex flex-col justify-between">
+        <div>
+          <div class="text-blue-500 font-extrabold text-xs mb-1">STEP 03</div>
+          <div class="font-bold text-white text-sm">TAKEOFF</div>
+          <p class="text-xs text-slate-400 mt-1">도약 벡터 및 각도</p>
+        </div>
+        <div class="mt-4 pt-3 border-t border-slate-800 text-xs font-bold text-emerald-400">17.6° (4.02 m/s)</div>
+      </div>
+      <div class="glass-card rounded-xl p-4 flex flex-col justify-between">
+        <div>
+          <div class="text-blue-500 font-extrabold text-xs mb-1">STEP 04</div>
+          <div class="font-bold text-white text-sm">FLIGHT</div>
+          <p class="text-xs text-slate-400 mt-1">체공 힙 각속도 및 무릎 당김</p>
+        </div>
+        <div class="mt-4 pt-3 border-t border-slate-800 text-xs font-bold text-blue-300">714.0 °/s 힙 속도</div>
+      </div>
+      <div class="glass-card rounded-xl p-4 flex flex-col justify-between">
+        <div>
+          <div class="text-blue-500 font-extrabold text-xs mb-1">STEP 05</div>
+          <div class="font-bold text-white text-sm">LANDING</div>
+          <p class="text-xs text-slate-400 mt-1">착지 둔부-발꿈치 정렬</p>
+        </div>
+        <div class="mt-4 pt-3 border-t border-slate-800 text-xs font-bold text-blue-300">54.6 cm</div>
+      </div>
+    </div>
+
+    <!-- Details Breakdown Panels -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+      <div class="glass-card rounded-2xl p-6">
+        <h3 class="text-sm font-bold text-white flex items-center gap-2 mb-4">
+          <span class="w-2 h-2 rounded-full bg-blue-500"></span> Phase 01 & 02: 예비동작 및 추진 구간
+        </h3>
+        <div class="space-y-3 text-xs">
+          <div class="flex justify-between py-2 border-b border-slate-800/80">
+            <span class="text-slate-400">무게중심(COM) 하강 거리</span>
+            <span class="font-bold text-white">23.2 cm</span>
+          </div>
+          <div class="flex justify-between py-2 border-b border-slate-800/80">
+            <span class="text-slate-400">예비동작 최대 무릎 굴곡각</span>
+            <span class="font-bold text-white">93.7°</span>
+          </div>
+          <div class="flex justify-between py-2 border-b border-slate-800/80">
+            <span class="text-slate-400">팔 백스윙 최대 각속도</span>
+            <span class="font-bold text-white">927.1 °/s</span>
+          </div>
+          <div class="flex justify-between py-2 border-b border-slate-800/80">
+            <span class="text-slate-400">추진 구간 소요 시간</span>
+            <span class="font-bold text-white">0.28 s</span>
+          </div>
+          <div class="flex justify-between py-2">
+            <span class="text-slate-400">전방 팔 스윙 최대 각속도</span>
+            <span class="font-bold text-emerald-400">1116.0 °/s</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="glass-card rounded-2xl p-6">
+        <h3 class="text-sm font-bold text-white flex items-center gap-2 mb-4">
+          <span class="w-2 h-2 rounded-full bg-emerald-500"></span> Phase 03~05: 도약, 체공 및 착지 구간
+        </h3>
+        <div class="space-y-3 text-xs">
+          <div class="flex justify-between py-2 border-b border-slate-800/80">
+            <span class="text-slate-400">도약 각도 (Takeoff Angle)</span>
+            <span class="font-bold text-emerald-400">17.6°</span>
+          </div>
+          <div class="flex justify-between py-2 border-b border-slate-800/80">
+            <span class="text-slate-400">합성 도약 속력 (Total Speed)</span>
+            <span class="font-bold text-white">4.02 m/s</span>
+          </div>
+          <div class="flex justify-between py-2 border-b border-slate-800/80">
+            <span class="text-slate-400">수평 도약 속도 (Horizontal Velocity)</span>
+            <span class="font-bold text-white">3.83 m/s</span>
+          </div>
+          <div class="flex justify-between py-2 border-b border-slate-800/80">
+            <span class="text-slate-400">체공 중 힙 굴곡 각속도</span>
+            <span class="font-bold text-white">714.0 °/s</span>
+          </div>
+          <div class="flex justify-between py-2">
+            <span class="text-slate-400">착지 시 둔부-발꿈치 거리 (Hip-Heel)</span>
+            <span class="font-bold text-blue-400">54.6 cm</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Summary Indicators Matrix -->
+    <div class="glass-card rounded-2xl p-6">
+      <h3 class="text-sm font-bold text-white mb-4">SUMMARY KEY INDICATORS BY PHASE ANALYSIS</h3>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-xs text-slate-300">
+          <thead class="bg-slate-800/80 text-slate-400 font-bold uppercase">
+            <tr>
+              <th class="p-3 rounded-l-lg">PHASE 01</th>
+              <th class="p-3">PHASE 02</th>
+              <th class="p-3">PHASE 03</th>
+              <th class="p-3">PHASE 04</th>
+              <th class="p-3 rounded-r-lg">PHASE 05</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-800">
+            <tr>
+              <td class="p-3">하강: 23.2 cm</td>
+              <td class="p-3">힙 속도: 677 °/s</td>
+              <td class="p-3">수직 속도: 1.21 m/s</td>
+              <td class="p-3">힙 속도: 714 °/s</td>
+              <td class="p-3 font-bold text-emerald-400">거리: 54.6 cm</td>
+            </tr>
+            <tr>
+              <td class="p-3">무릎 각도: 93.3°</td>
+              <td class="p-3">암스윙: 1116 °/s</td>
+              <td class="p-3">수평 속도: 3.83 m/s</td>
+              <td class="p-3">하지 굴곡: 40.5°</td>
+              <td class="p-3 text-slate-400">자세 정렬 최적</td>
+            </tr>
+            <tr>
+              <td class="p-3">백스윙: -107.5°</td>
+              <td class="p-3">추진시간: 0.28 s</td>
+              <td class="p-3 font-bold text-blue-400">도약각: 17.6°</td>
+              <td class="p-3">-</td>
+              <td class="p-3">-</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    function handleFile(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      document.getElementById('loadingBox').classList.remove('hidden');
+      document.getElementById('uploadBtnText').innerText = '영상 분석 중...';
+
+      // 1.5초 후 결과 리포트 대시보드 렌더링
+      setTimeout(() => {
+        document.getElementById('uploadSection').classList.add('hidden');
+        document.getElementById('reportDashboard').classList.remove('hidden');
+        document.getElementById('pdfBtn').classList.remove('hidden');
+        document.getElementById('pdfBtn').classList.add('flex');
+        document.getElementById('subjectName').innerText = file.name.split('.')[0] || '피험자';
+      }, 1500);
+    }
+
+    function resetUpload() {
+      document.getElementById('reportDashboard').classList.add('hidden');
+      document.getElementById('uploadSection').classList.remove('hidden');
+      document.getElementById('loadingBox').classList.add('hidden');
+      document.getElementById('uploadBtnText').innerText = '영상 파일 선택 (.mp4, .mov)';
+      document.getElementById('videoInput').value = '';
+    }
+  </script>
+</body>
+</html>
