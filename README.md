@@ -1,6 +1,6 @@
-# Performetrics AI - Standing Long Jump Biomechanics Video Analyzer
+# PASS AI - Standing Long Jump Biomechanics Video Analyzer
 
-제자리멀리뛰기(Standing Long Jump) 실기 및 연구 영상을 업로드하면 **Performetrics 5단계 생체역학 분석 리포트**를 자동 생성하고 인터랙티브 웹 대시보드로 시각화해주는 풀스택 시스템입니다.
+제자리멀리뛰기(Standing Long Jump) 실기 및 연구 영상을 업로드하면 **PASS 5단계 생체역학 분석 리포트**를 자동 생성하고 인터랙티브 웹 대시보드로 시각화해주는 풀스택 시스템입니다.
 
 ## 🎯 주요 기능
 - **영상 업로드 및 자동 분석**: 웹 UI에서 측면 촬영 영상을 드래그&드롭으로 업로드
